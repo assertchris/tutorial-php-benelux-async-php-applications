@@ -1,0 +1,97 @@
+<?php
+
+function startProcess($tag, $command, $log = null)
+{
+    $log = $log ?? "/dev/null";
+    $output = "> {$log} 2> {$log}";
+    
+    exec("{$command} tag={$tag} {$output} &");
+}
+
+function identifyProcess($tag)
+{
+    exec("ps -ax | grep '[t]ag={$tag}'", $lines);
+    $parts = explode(" ", trim($lines[0]));
+    
+    return (int) $parts[0];
+}
+
+function stopProcess($tag)
+{
+    $pid = identifyProcess($tag);
+    
+    if (!$pid) {
+        return;
+    }
+    
+    exec("kill -9 {$pid}");
+}
+
+use Aerys\Request;
+
+async function fields(Request $request)
+{
+    $parsed = await Aerys\parseBody($request);
+    $fields = $parsed->getAll()["fields"];
+
+    foreach ($fields as $key => $value) {
+        if (is_array($value) && count($value) === 1) {
+            $fields[$key] = $value[0];
+        }
+    }
+
+    return $fields;
+}
+
+use Amp\ParallelFunctions;
+use League\Plates\Engine;
+
+async function view(string $path, array $data = [])
+{
+    $templates = __DIR__ . "/resources/views";
+        
+    $parallel = ParallelFunctions\parallel(() => {
+        $engine = new Engine($templates);
+        return $engine->render($path, $data);
+    });
+
+    $response = await $parallel();
+
+    return $response;
+}
+
+use Amp\Mysql;
+
+async function connect()
+{
+    static $connection;
+
+    if ($connection) {
+        return $connection;
+    }
+
+    // $host = getenv("DB_HOST");
+    // $port = getenv("DB_PORT");
+    // $name = getenv("DB_NAME");
+    // $user = getenv("DB_USER");
+    // $pass = getenv("DB_PASS");
+
+    $host = "127.0.0.1";
+    $port = "3306";
+    $name = "workshop";
+    $user = "root";
+    $pass = "";
+
+    $connection = await Mysql\connect("host={$host}:{$port};user={$user};pass={$pass};db={$name}");
+
+    return $connection;
+}
+
+async function prepare($query, array $values = [])
+{
+    $connection = await connect();
+    $statement = await $connection->prepare($query);
+    $result = await $statement->execute($values);
+
+    return $result;
+}

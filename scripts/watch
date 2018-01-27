@@ -1,0 +1,54 @@
+#!/usr/bin/env php
+<?php
+
+require_once __DIR__ . "/../vendor/autoload.php";
+
+use Symfony\Component\Finder\Finder;
+
+$finder = new Finder();
+
+$finder->files()
+   ->name("*.php")
+   ->in(__DIR__ . "/../app");
+
+use Yosymfony\ResourceWatcher\ResourceWatcher;
+use Yosymfony\ResourceWatcher\ResourceCacheFile;
+
+$cache = new ResourceCacheFile(__DIR__ . "/.dev-changes.php");
+
+$watcher = new ResourceWatcher($cache);
+$watcher->setFinder($finder);
+
+// startProcess(
+//     "async-project",
+//     "vendor/bin/aerys -d -c server.php",
+//     "debug.log"
+// );
+
+use Cocur\BackgroundProcess\BackgroundProcess;
+
+$process = new BackgroundProcess("vendor/bin/aerys -d -c server.php");
+$process->run();
+
+while (true) {
+    $watcher->findChanges();
+    
+    if ($watcher->hasChanges()) {
+        print "Restarting the server" . PHP_EOL;
+        
+        // stopProcess("async-project");
+        //
+        // startProcess(
+        //     "async-project",
+        //     "vendor/bin/aerys -d -c server.php",
+        //     "debug.log"
+        // );
+
+        $process->stop();
+
+        $process = new BackgroundProcess("vendor/bin/aerys -d -c server.php");
+        $process->run();
+    }
+    
+    usleep(100000);
+}

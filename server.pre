@@ -1,0 +1,90 @@
+<?php
+
+Pre\Plugin\process(__DIR__ . "/helpers.pre");
+
+use Aerys\Host;
+use Aerys\Request;
+use Aerys\Response;
+use Aerys\Root;
+use Aerys\Router;
+use Amp\File;
+
+$router = new Router();
+
+// $router->route("GET", "/", function (Request $request, Response $response) {
+//     $response->end("hello world 123");
+// });
+
+use App\Responder\HomePageResponder;
+
+$router->route("GET", "/", new HomePageResponder);
+
+$router->route("GET", "/register", function (Request $request, Response $response) {
+    // $template = yield File\get(__DIR__ . "/resources/views/register.html");
+
+    $view = yield view("register");
+    $response->end($view);
+});
+
+$router->route("POST", "/register", function (Request $request, Response $response) {
+    $fields = yield fields($request);
+
+    yield prepare(
+        "INSERT INTO users (email, password) VALUES (:email, :password)",
+        ["email" => $fields["email"], "password" => $fields["password"]]
+    );
+
+    $result = yield prepare("SELECT * FROM users");
+
+    while (yield $result->advance()) {
+        print_r($result->getCurrent());
+    }
+
+    $response->end(json_encode($fields));
+});
+
+use Aerys\Websocket;
+use Aerys\Websocket\Endpoint;
+use Aerys\Websocket\Message;
+
+$socket = Aerys\websocket(new class implements Websocket {
+    public function onStart(Endpoint $endpoint) {
+        // ...
+    }
+
+    public function onHandshake(Request $request, Response $response) {
+        // ...error if the request is invalid
+    }
+
+    public function onOpen(int $id, $handshake) {
+        // ...notify other users and/or store the client id
+        print "new connection {$id}\n";
+    }
+
+    public function onData(int $id, Message $message) {
+        $text = yield $message;
+        print "new message {$id} {$text}\n";
+        
+        // ...act on the message text
+    }
+
+    public function onClose(int $id, int $code, string $reason) {
+        // ...notify other users
+    }
+
+    public function onStop() {
+        // ...
+    }
+});
+
+$router->route("GET", "/socket", $socket);
+
+$root = new Root(.."/public");
+
+$host = new Host();
+$host->expose("*", 8889);
+
+$host->use($root);
+$host->use($router);
+
+return $host;

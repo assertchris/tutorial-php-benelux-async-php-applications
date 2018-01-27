@@ -1,0 +1,19 @@
+{
+    "require": {
+        "amphp/aerys": "^0.7.4",
+        "league/plates": "^3.3",
+        "amphp/parallel-functions": "^0.1.2",
+        "amphp/mysql": "^0.3.1",
+        "pre/async": "^0.8.0",
+        "pre/short-closures": "^0.6.0",
+        "cocur/background-process": "^0.7.0"
+    },
+    "require-dev": {
+        "yosymfony/resource-watcher": "^1.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "app"
+        }
+    }
+}

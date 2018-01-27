@@ -1,0 +1,7 @@
+.vscode
+helpers.php
+server.php
+vendor
+scripts/.dev-changes.php
+debug.log
+pre.macros
